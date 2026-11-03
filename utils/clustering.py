@@ -1,257 +1,145 @@
 
-"""
-File Name: clustering.py
-Purpose: Identify geographical fire hotspot clusters using DBSCAN.
-"""
-
 import numpy as np
 import pandas as pd
-
 from sklearn.cluster import DBSCAN
 
 
-# --------------------------------------------------
-# DBSCAN Parameters
-# --------------------------------------------------
-
-EPS_KM = 15
+# DBSCAN settings: 5 km neighbourhood and minimum 5 observations
+EPS_KM = 5
 MIN_SAMPLES = 5
 EARTH_RADIUS_KM = 6371
+EPS_RAD = EPS_KM / EARTH_RADIUS_KM  # Haversine requires distance in radians
 
-# Convert distance from kilometres to radians
-EPS_RAD = EPS_KM / EARTH_RADIUS_KM
+CLUSTER_COLUMNS = [
+    "cluster",
+    "detection_count",
+    "centroid_latitude",
+    "centroid_longitude",
+    "average_frp",
+    "maximum_frp",
+    "dominant_confidence"
+]
 
-
-# --------------------------------------------------
-# 1. Perform DBSCAN Clustering
-# --------------------------------------------------
 
 def perform_clustering(data):
-    """
-    Group geographically close fire hotspot observations
-    using DBSCAN with the Haversine distance metric.
-
-    EPS_KM = 15:
-        Maximum neighbourhood distance is 15 km.
-
-    MIN_SAMPLES = 5:
-        At least 5 observations, including the point itself,
-        must be within the neighbourhood for a core point.
-
-    Cluster -1 represents noise.
-    """
-
+    # Handle empty input
     if data.empty:
-
         result = data.copy()
         result["cluster"] = pd.Series(dtype=int)
-
         return result
 
-    # Check required columns
-    required_columns = [
-        "latitude",
-        "longitude"
-    ]
+    # Check required geographical columns
+    required = ["latitude", "longitude"]
 
-    for column in required_columns:
-
+    for column in required:
         if column not in data.columns:
-
-            raise ValueError(
-                "Missing clustering column: " + column
-            )
+            raise ValueError("Missing clustering column: " + column)
 
     result = data.copy()
 
     # Convert coordinates to numeric values
-    result["latitude"] = pd.to_numeric(
-        result["latitude"],
-        errors="coerce"
-    )
+    for column in required:
+        result[column] = pd.to_numeric(result[column], errors="coerce")
 
-    result["longitude"] = pd.to_numeric(
-        result["longitude"],
-        errors="coerce"
-    )
+    # Keep only valid geographical coordinates
+    valid = (result["latitude"].between(-90, 90) & result["longitude"].between(-180, 180))
 
-    # Remove invalid coordinates
-    valid_coordinates = (
-        result["latitude"].between(-90, 90)
-        & result["longitude"].between(-180, 180)
-    )
-
-    result = result.loc[
-        valid_coordinates
-    ].copy()
-
-    result = result.dropna(
-        subset=["latitude", "longitude"]
-    )
-
-    result.reset_index(drop=True, inplace=True)
+    result = result.loc[valid].reset_index(drop=True)
 
     if result.empty:
-
         result["cluster"] = pd.Series(dtype=int)
-
         return result
 
-    # Convert latitude and longitude to radians
-    coordinates = np.radians(
-        result[["latitude", "longitude"]].to_numpy()
-    )
+    # Convert latitude and longitude from degrees to radians
+    coordinates = np.radians(result[required].to_numpy())
 
-    # Apply DBSCAN
-    dbscan = DBSCAN(
+    # Apply DBSCAN using geographical distance
+    model = DBSCAN(
         eps=EPS_RAD,
         min_samples=MIN_SAMPLES,
         metric="haversine",
         algorithm="ball_tree"
     )
 
-    # Assign cluster labels
-    result["cluster"] = dbscan.fit_predict(
-        coordinates
-    )
+    # Assign cluster IDs; -1 represents noise
+    result["cluster"] = model.fit_predict(coordinates)
 
     return result
 
 
-# --------------------------------------------------
-# 2. Calculate Cluster Statistics
-# --------------------------------------------------
-
 def calculate_cluster_statistics(data):
-    """
-    Calculate statistics for each non-noise cluster.
-
-    Noise observations are excluded.
-    """
-
-    columns = [
-        "cluster",
-        "detection_count",
-        "centroid_latitude",
-        "centroid_longitude",
-        "average_frp",
-        "maximum_frp",
-        "dominant_confidence"
-    ]
-
     if data.empty:
-
-        return pd.DataFrame(columns=columns)
+        return pd.DataFrame(columns=CLUSTER_COLUMNS)
 
     if "cluster" not in data.columns:
+        raise ValueError("Cluster column not found. Perform DBSCAN clustering first.")
 
-        raise ValueError(
-            "Cluster column not found. "
-            "Perform DBSCAN clustering first."
-        )
+    # Exclude noise observations from cluster statistics
+    clustered = data[data["cluster"] != -1].copy()
 
-    # Exclude noise observations
-    clustered_data = data[
-        data["cluster"] != -1
-    ].copy()
+    if clustered.empty:
+        return pd.DataFrame(columns=CLUSTER_COLUMNS)
 
-    if clustered_data.empty:
+    # Group observations by cluster
+    grouped = clustered.groupby("cluster")
 
-        return pd.DataFrame(columns=columns)
-
-    # Calculate cluster statistics
-    statistics = (
-        clustered_data
-        .groupby("cluster")
-        .agg(
-            detection_count=("cluster", "size"),
-            centroid_latitude=("latitude", "mean"),
-            centroid_longitude=("longitude", "mean")
-        )
-        .reset_index()
+    # Calculate detection count and geographical centroid
+    statistics = grouped.agg(
+        detection_count=("cluster", "size"),
+        centroid_latitude=("latitude", "mean"),
+        centroid_longitude=("longitude", "mean")
     )
 
-    # Calculate FRP statistics when available
-    if "frp" in clustered_data.columns:
-
-        frp_statistics = (
-            clustered_data
-            .groupby("cluster")
-            .agg(
-                average_frp=("frp", "mean"),
-                maximum_frp=("frp", "max")
-            )
-            .reset_index()
+    # Calculate average and maximum Fire Radiative Power
+    if "frp" in clustered.columns:
+        frp_stats = grouped["frp"].agg(
+            average_frp="mean",
+            maximum_frp="max"
         )
-
-        statistics = statistics.merge(
-            frp_statistics,
-            on="cluster",
-            how="left"
-        )
-
+        statistics = statistics.join(frp_stats)
     else:
-
         statistics["average_frp"] = np.nan
         statistics["maximum_frp"] = np.nan
 
-    # Determine dominant predicted confidence
-    confidence_column = None
+    # Select the available confidence column
+    confidence_column = next(
+        (
+            column for column in [
+                "predicted_confidence_label",
+                "predicted_confidence"
+            ]
+            if column in clustered.columns
+        ),
+        None
+    )
 
-    if "predicted_confidence_label" in clustered_data.columns:
-
-        confidence_column = "predicted_confidence_label"
-
-    elif "predicted_confidence" in clustered_data.columns:
-
-        confidence_column = "predicted_confidence"
-
-    if confidence_column is not None:
-
-        dominant_confidence = (
-            clustered_data
-            .groupby("cluster")[confidence_column]
+    # Find the most frequently occurring confidence class
+    if confidence_column:
+        statistics["dominant_confidence"] = (
+            grouped[confidence_column]
             .agg(
-                lambda values:
-                values.mode().iloc[0]
-                if not values.mode().empty
-                else "Unknown"
+                lambda values: (
+                    values.mode().iloc[0]
+                    if not values.mode().empty
+                    else "Unknown"
+                )
             )
-            .reset_index(name="dominant_confidence")
         )
-
-        statistics = statistics.merge(
-            dominant_confidence,
-            on="cluster",
-            how="left"
-        )
-
     else:
-
         statistics["dominant_confidence"] = "Unknown"
 
-    # Sort clusters by number of detections
-    statistics = statistics.sort_values(
-        "detection_count",
-        ascending=False
-    ).reset_index(drop=True)
+    # Sort clusters by detection count
+    return (
+        statistics
+        .sort_values("detection_count", ascending=False)
+        .reset_index()
+        [CLUSTER_COLUMNS]
+    )
 
-    return statistics[columns]
-
-
-# --------------------------------------------------
-# 3. Calculate Overall Clustering Summary
-# --------------------------------------------------
 
 def calculate_clustering_summary(data):
-    """
-    Calculate overall DBSCAN clustering statistics.
-
-    Noise is counted separately from actual clusters.
-    """
-
+    # Return zero values when no observations are available
     if data.empty:
-
         return {
             "total_detections": 0,
             "number_of_clusters": 0,
@@ -262,50 +150,24 @@ def calculate_clustering_summary(data):
         }
 
     if "cluster" not in data.columns:
-
         raise ValueError(
-            "Cluster column not found. "
-            "Perform DBSCAN clustering first."
+            "Cluster column not found. Perform DBSCAN clustering first."
         )
 
-    total_detections = len(data)
+    total = len(data)
 
-    # Count non-noise clusters
-    number_of_clusters = (
-        data.loc[
-            data["cluster"] != -1,
-            "cluster"
-        ].nunique()
-    )
+    # Count clustered and noise observations
+    noise = int(data["cluster"].eq(-1).sum())
+    clustered = total - noise
 
-    # Count clustered observations
-    clustered_detections = int(
-        (data["cluster"] != -1).sum()
-    )
-
-    # Count noise observations
-    noise_detections = int(
-        (data["cluster"] == -1).sum()
-    )
-
-    # Calculate percentages
-    clustered_percentage = (
-        clustered_detections / total_detections
-    ) * 100
-
-    noise_percentage = (
-        noise_detections / total_detections
-    ) * 100
-
+    # Return overall clustering statistics
     return {
-        "total_detections": total_detections,
-        "number_of_clusters": int(number_of_clusters),
-        "clustered_detections": clustered_detections,
-        "noise_detections": noise_detections,
-        "clustered_percentage": round(
-            clustered_percentage, 2
+        "total_detections": total,
+        "number_of_clusters": int(
+            data.loc[data["cluster"] != -1, "cluster"].nunique()
         ),
-        "noise_percentage": round(
-            noise_percentage, 2
-        )
+        "clustered_detections": clustered,
+        "noise_detections": noise,
+        "clustered_percentage": round(clustered / total * 100, 2),
+        "noise_percentage": round(noise / total * 100, 2)
     }

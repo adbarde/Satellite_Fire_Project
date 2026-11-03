@@ -1,7 +1,14 @@
 
+"""
+File Name: 2_Regional_Priority_Analysis.py
+Project: Satellite Fire Hotspot Intelligence
+Purpose: Analyse individual fire detection priorities,
+         spatial cluster priorities and priority distributions.
+"""
+
 import streamlit as st
-import pandas as pd
-import plotly.express as px
+
+from utils.theme import apply_theme
 
 from utils.priority import (
     calculate_priority_scores,
@@ -11,149 +18,49 @@ from utils.priority import (
 )
 
 from utils.visualisations import (
+    plot_priority_map,
     plot_priority_distribution,
     plot_cluster_priority
 )
 
 
-# ------------------------------------------------------------
-# Page Configuration
-# ------------------------------------------------------------
+# ==================================================
+# 1. PAGE CONFIGURATION
+# ==================================================
 
 st.set_page_config(
     page_title="Priority Analysis",
-    page_icon="📊",
-    layout="wide"
+    page_icon="🔥",
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
-
-# ------------------------------------------------------------
-# UI Styling
-# ------------------------------------------------------------
-
-st.markdown("""
-<style>
-
-/* Main background */
-.stApp {
-    background-color: #101827;
-    color: #F1F5F9;
-}
-
-/* Content spacing */
-.block-container {
-    padding-top: 2rem;
-    padding-bottom: 2rem;
-    max-width: 1400px;
-}
-
-/* Headings */
-h1, h2, h3 {
-    color: #F1F5F9 !important;
-}
-
-/* Paragraphs */
-p {
-    color: #CBD5E1;
-}
-
-/* Sidebar */
-[data-testid="stSidebar"] {
-    background-color: #182538;
-}
-
-/* Metric cards */
-[data-testid="stMetric"] {
-    background-color: #182538;
-    border: 1px solid #334155;
-    padding: 18px;
-    border-radius: 12px;
-}
-
-/* Metric labels */
-[data-testid="stMetricLabel"] {
-    color: #94A3B8;
-}
-
-/* Metric values */
-[data-testid="stMetricValue"] {
-    color: #F1F5F9;
-}
-
-/* Buttons */
-.stButton > button,
-.stDownloadButton > button {
-    background-color: #2563EB;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    padding: 0.5rem 1rem;
-}
-
-.stButton > button:hover,
-.stDownloadButton > button:hover {
-    background-color: #1D4ED8;
-    color: white;
-}
-
-/* Expanders */
-[data-testid="stExpander"] {
-    background-color: #182538;
-    border: 1px solid #334155;
-    border-radius: 10px;
-}
-
-/* Dataframes */
-[data-testid="stDataFrame"] {
-    border: 1px solid #334155;
-    border-radius: 10px;
-}
-
-/* Footer */
-.footer {
-    text-align: center;
-    color: #94A3B8;
-    font-size: 13px;
-    padding-top: 22px;
-    padding-bottom: 10px;
-    border-top: 1px solid #334155;
-    margin-top: 40px;
-}
-
-.footer-subtitle {
-    color: #64748B;
-    font-size: 12px;
-}
-
-hr {
-    border-color: #334155;
-}
-
-</style>
-""", unsafe_allow_html=True)
+apply_theme()
 
 
-# ------------------------------------------------------------
-# Page Header
-# ------------------------------------------------------------
+# ==================================================
+# 2. PAGE HEADER
+# ==================================================
 
 st.title("Priority Analysis")
 
 st.caption(
-    "Explore individual fire detection priorities "
-    "and priority patterns across spatial clusters."
+    "Analyse individual fire detection priorities and "
+    "identify high-priority geographical clusters."
 )
 
+st.divider()
 
-# ------------------------------------------------------------
-# Retrieve Data from Page 1
-# ------------------------------------------------------------
+
+# ==================================================
+# 3. RETRIEVE LIVE FIRE DATA
+# ==================================================
 
 if "live_fire_data" not in st.session_state:
 
     st.warning(
-        "Fire data is not available. Open Live Fire Monitoring "
-        "first to fetch and process the latest observations."
+        "Open Live Fire Monitoring first to fetch and "
+        "process fire observations."
     )
 
     st.stop()
@@ -162,9 +69,16 @@ if "live_fire_data" not in st.session_state:
 data = st.session_state["live_fire_data"].copy()
 
 
-# ------------------------------------------------------------
-# Calculate Individual Priority Scores
-# ------------------------------------------------------------
+if data.empty:
+
+    st.warning("No live fire observations are available.")
+
+    st.stop()
+
+
+# ==================================================
+# 4. CALCULATE PRIORITY SCORES
+# ==================================================
 
 try:
 
@@ -173,129 +87,89 @@ try:
 except Exception as error:
 
     st.error(f"Unable to calculate priority scores: {error}")
+
     st.stop()
 
 
 if priority_data.empty:
 
     st.warning("No observations are available for priority analysis.")
+
     st.stop()
 
 
-# ------------------------------------------------------------
-# Priority Counts
-# ------------------------------------------------------------
+# ==================================================
+# 5. PRIORITY SUMMARY
+# ==================================================
 
-priority_counts = (
-    priority_data["priority_category"]
-    .value_counts()
-)
+counts = priority_data["priority_category"].value_counts()
 
-high_count = int(priority_counts.get("High", 0))
-medium_count = int(priority_counts.get("Medium", 0))
-low_count = int(priority_counts.get("Low", 0))
-
-
-# ------------------------------------------------------------
-# Priority Summary
-# ------------------------------------------------------------
+high = counts.get("High", 0)
+medium = counts.get("Medium", 0)
+low = counts.get("Low", 0)
 
 st.subheader("Priority Summary")
 
 col1, col2, col3 = st.columns(3)
 
-with col1:
-    st.metric(
-        "High Priority",
-        f"{high_count:,}"
-    )
+col1.metric(
+    "High Priority",
+    f"{high:,}"
+)
 
-with col2:
-    st.metric(
-        "Medium Priority",
-        f"{medium_count:,}"
-    )
+col2.metric(
+    "Medium Priority",
+    f"{medium:,}"
+)
 
-with col3:
-    st.metric(
-        "Low Priority",
-        f"{low_count:,}"
-    )
+col3.metric(
+    "Low Priority",
+    f"{low:,}"
+)
 
 st.caption(
     f"Total observations analysed: {len(priority_data):,}"
 )
 
-
 st.divider()
 
 
-# ------------------------------------------------------------
-# Priority Map
-# ------------------------------------------------------------
+# ==================================================
+# 6. PRIORITY MAP
+# ==================================================
 
-st.subheader("Priority Map")
+st.subheader("Geographical Priority Distribution")
 
 st.caption(
-    "Geographical distribution of individual fire detections. "
-    "Red: High · Orange: Medium · Green: Low"
+    "High: Red · Medium: Gold · Low: Green"
 )
 
 st.caption(
-    "Both clustered and DBSCAN noise observations are included."
+    "Includes clustered and DBSCAN noise observations."
 )
 
-map_data = priority_data.dropna(
-    subset=["latitude", "longitude", "priority_category"]
-).copy()
+fig = plot_priority_map(priority_data)
 
-
-if not map_data.empty:
-
-    priority_map = px.scatter_map(
-        map_data,
-        lat="latitude",
-        lon="longitude",
-        color="priority_category",
-        color_discrete_map={
-            "High": "#EF4444",
-            "Medium": "#F59E0B",
-            "Low": "#22C55E"
-        },
-        hover_data={
-            "latitude": False,
-            "longitude": False,
-            "country": True,
-            "frp": ":.2f",
-            "priority_score": ":.2f",
-            "cluster": True
-        },
-        zoom=4,
-        height=600
-    )
-
-    priority_map.update_layout(
-        map_style="open-street-map",
-        margin={"r": 0, "t": 20, "l": 0, "b": 0},
-        legend_title_text="Priority"
-    )
+if fig is not None:
 
     st.plotly_chart(
-        priority_map,
+        fig,
         use_container_width=True
     )
 
 else:
 
-    st.info("No valid geographical coordinates are available.")
-
+    st.info(
+        "No valid geographical coordinates are available."
+    )
 
 st.divider()
 
 
-# ------------------------------------------------------------
-# Priority Distribution and Cluster Ranking
-# ------------------------------------------------------------
+# ==================================================
+# 7. PRIORITY DISTRIBUTION
+#    AND CLUSTER RANKING
+# ==================================================
 
 col1, col2 = st.columns(2)
 
@@ -303,19 +177,29 @@ with col1:
 
     st.subheader("Priority Distribution")
 
-    priority_chart = plot_priority_distribution(priority_data)
+    chart = plot_priority_distribution(priority_data)
 
-    st.plotly_chart(
-        priority_chart,
-        use_container_width=True
-    )
+    if chart is not None:
+
+        st.plotly_chart(
+            chart,
+            use_container_width=True
+        )
+
+    else:
+
+        st.info(
+            "No priority distribution is available."
+        )
 
 
 with col2:
 
     st.subheader("Highest-Ranked Clusters")
 
-    st.caption("Ranked by average individual priority score.")
+    st.caption(
+        "Ranked by average individual priority score."
+    )
 
     top_clusters = get_top_priority_clusters(
         priority_data,
@@ -324,30 +208,39 @@ with col2:
 
     if not top_clusters.empty:
 
-        cluster_chart = plot_cluster_priority(top_clusters)
+        chart = plot_cluster_priority(top_clusters)
 
-        st.plotly_chart(
-            cluster_chart,
-            use_container_width=True
-        )
+        if chart is not None:
+
+            st.plotly_chart(
+                chart,
+                use_container_width=True
+            )
+
+        else:
+
+            st.info(
+                "Unable to generate the cluster priority chart."
+            )
 
     else:
 
-        st.info("No spatial clusters are available for ranking.")
-
+        st.info(
+            "No spatial clusters are available for ranking."
+        )
 
 st.divider()
 
 
-# ------------------------------------------------------------
-# Cluster Summary Table
-# ------------------------------------------------------------
+# ==================================================
+# 8. CLUSTER DETAILS
+# ==================================================
 
 st.subheader("Cluster Details")
 
 if not top_clusters.empty:
 
-    cluster_columns = [
+    columns = [
         "cluster",
         "detection_count",
         "average_priority",
@@ -357,28 +250,29 @@ if not top_clusters.empty:
         "dominant_confidence"
     ]
 
-    available_columns = [
-        column for column in cluster_columns
-        if column in top_clusters.columns
+    available = [
+        col for col in columns
+        if col in top_clusters.columns
     ]
 
     st.dataframe(
-        top_clusters[available_columns],
+        top_clusters[available],
         use_container_width=True,
         hide_index=True
     )
 
 else:
 
-    st.info("No cluster summary is available.")
-
+    st.info(
+        "No cluster summary is available."
+    )
 
 st.divider()
 
 
-# ------------------------------------------------------------
-# Highest-Priority Detections
-# ------------------------------------------------------------
+# ==================================================
+# 9. HIGHEST-PRIORITY DETECTIONS
+# ==================================================
 
 st.subheader("Highest-Priority Detections")
 
@@ -387,36 +281,43 @@ top_observations = get_top_priority_observations(
     number=10
 )
 
-observation_columns = [
-    "latitude",
-    "longitude",
-    "country",
-    "acq_date",
-    "frp",
-    "predicted_confidence",
-    "priority_score",
-    "priority_category",
-    "cluster"
-]
+if not top_observations.empty:
 
-available_columns = [
-    column for column in observation_columns
-    if column in top_observations.columns
-]
+    columns = [
+        "latitude",
+        "longitude",
+        "country",
+        "acq_date",
+        "frp",
+        "predicted_confidence",
+        "priority_score",
+        "priority_category",
+        "cluster"
+    ]
 
-st.dataframe(
-    top_observations[available_columns],
-    use_container_width=True,
-    hide_index=True
-)
+    available = [
+        col for col in columns
+        if col in top_observations.columns
+    ]
 
+    st.dataframe(
+        top_observations[available],
+        use_container_width=True,
+        hide_index=True
+    )
+
+else:
+
+    st.info(
+        "No high-priority observations are available."
+    )
 
 st.divider()
 
 
-# ------------------------------------------------------------
-# Priority Methodology and Limitations
-# ------------------------------------------------------------
+# ==================================================
+# 10. PRIORITY METHODOLOGY
+# ==================================================
 
 with st.expander("How Priority Is Calculated"):
 
@@ -426,70 +327,61 @@ with st.expander("How Priority Is Calculated"):
         r"P = 100(0.50F + 0.30D + 0.20C)"
     )
 
-    st.markdown(
-        """
-        | Component | Description | Weight |
-        |---|---|---:|
-        | FRP score (F) | Percentile rank of Fire Radiative Power | 50% |
-        | Density score (D) | Log-normalised nearby detection count within 5 km | 30% |
-        | Confidence score (C) | Decision Tree predicted confidence mapping | 20% |
-        """
-    )
+    st.markdown("""
+    | Component | Description | Weight |
+    |---|---|---:|
+    | FRP (F) | FRP percentile rank | 50% |
+    | Density (D) | Log-normalised detections within 5 km | 30% |
+    | Confidence (C) | Decision Tree predicted confidence | 20% |
+    """)
 
     st.markdown("#### Confidence Mapping")
 
-    st.markdown(
-        """
-        | Predicted class | Score |
-        |---|---:|
-        | High (`h`) | 1.0 |
-        | Nominal (`n`) | 0.7 |
-        | Low (`l`) | 0.4 |
-        """
-    )
+    st.markdown("""
+    | Predicted Class | Score |
+    |---|---:|
+    | High (`h`) | 1.0 |
+    | Nominal (`n`) | 0.7 |
+    | Low (`l`) | 0.4 |
+    """)
 
     st.markdown("#### Priority Categories")
 
-    st.markdown(
-        """
-        | Priority score | Category |
-        |---|---|
-        | 70–100 | High |
-        | 40–less than 70 | Medium |
-        | Less than 40 | Low |
-        """
-    )
+    st.markdown("""
+    | Score | Category |
+    |---|---|
+    | 70–100 | High |
+    | 40–less than 70 | Medium |
+    | Less than 40 | Low |
+    """)
 
     st.markdown("#### Cluster Priority")
 
     st.write(
         "Individual priority scores are calculated first. "
-        "Cluster-level priority is summarised using the average "
-        "priority score of detections within each cluster."
+        "Cluster priority is summarised using the average "
+        "score of detections within each cluster."
     )
 
     st.write(
-        "**Average priority:** Overall priority level of detections "
-        "within a cluster."
+        "**Average priority:** Overall priority of detections in a cluster."
     )
 
     st.write(
-        "**Maximum priority:** Highest individual priority score "
-        "within the cluster."
+        "**Maximum priority:** Highest individual score in a cluster."
     )
 
     st.write(
-        "**Detection count:** Number of observations belonging "
-        "to the cluster."
+        "**Detection count:** Number of observations in a cluster."
     )
 
     st.write(
-        "Clusters are ranked by average priority, not by detection count."
+        "Clusters are ranked by average priority, not detection count."
     )
 
     st.write(
-        "DBSCAN noise observations are excluded from cluster ranking, "
-        "but remain included in individual priority analysis and the map."
+        "Noise observations are excluded from cluster ranking but remain "
+        "included in individual priority analysis and the map."
     )
 
     st.markdown("#### Notes and Limitations")
@@ -500,25 +392,18 @@ with st.expander("How Priority Is Calculated"):
         "measurement or emergency-response classification."
     )
 
-    st.markdown(
-        """
-        - FRP, local detection density and predicted confidence are
-          weighted indicators used by this project.
-        - The confidence component comes from the Decision Tree model
-          and is not an independent measurement of fire severity.
-        - A high score indicates higher investigation priority under
-          the selected formula; it does not confirm a dangerous fire.
-        - DBSCAN clustering and priority scoring are independent processes.
-          Priority scores do not affect cluster formation.
-        - The 5 km density calculation is separate from DBSCAN's
-          geographical neighbourhood radius.
-        """
-    )
+    st.markdown("""
+    - FRP, density and predicted confidence are weighted indicators.
+    - Confidence is predicted by the Decision Tree model.
+    - A high score does not confirm a dangerous fire.
+    - DBSCAN clustering and priority scoring are independent.
+    - The 5 km density calculation is separate from DBSCAN's neighbourhood radius.
+    """)
 
 
-# ------------------------------------------------------------
-# Download Priority Analysis Data
-# ------------------------------------------------------------
+# ==================================================
+# 11. PREPARE DOWNLOAD REPORTS
+# ==================================================
 
 st.divider()
 
@@ -528,7 +413,8 @@ cluster_summary = calculate_priority_cluster_summary(
     priority_data
 )
 
-download_options = {
+downloads = {
+
     "All Priority Observations": (
         priority_data.to_csv(index=False).encode("utf-8"),
         "all_priority_observations.csv"
@@ -550,39 +436,47 @@ download_options = {
     )
 }
 
-selected_download = st.selectbox(
+
+# ==================================================
+# 12. DOWNLOAD SELECTED REPORT
+# ==================================================
+
+selected = st.selectbox(
     "Select report",
-    list(download_options.keys())
+    list(downloads.keys())
 )
 
-download_data, download_filename = download_options[selected_download]
+csv_data, filename = downloads[selected]
 
 st.download_button(
     label="Download CSV",
-    data=download_data,
-    file_name=download_filename,
+    data=csv_data,
+    file_name=filename,
     mime="text/csv",
     use_container_width=True
 )
 
 
-# ------------------------------------------------------------
-# Footer
-# ------------------------------------------------------------
+# ==================================================
+# 13. FOOTER
+# ==================================================
 
-st.markdown(
-    """
-    <div class="footer">
-        <div>AI Mini Project | Anshika (2601) · Kiran (2605)</div>
-        <div class="footer-subtitle">
-            Satellite Fire Hotspot Intelligence
-        </div>
+st.markdown("""
+<div class="footer">
+    <div class="footer-title">
+        SATELLITE FIRE HOTSPOT INTELLIGENCE
     </div>
-    """,
-    unsafe_allow_html=True
-)
+
+    <div>
+        AI Mini Project | Anshika (2601) · Kiran (2605)
+    </div>
+
+    <div class="footer-subtitle">
+        Priority scores support exploratory investigation.
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
 st.caption(
-    "Priority scores are intended for exploratory analysis "
-    "and should not be interpreted as confirmed fire-risk levels."
+    "Priority scores should not be interpreted as confirmed fire-risk levels."
 )

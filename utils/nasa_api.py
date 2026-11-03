@@ -1,4 +1,3 @@
-
 """
 File Name: nasa_api.py
 Purpose: Fetch recent fire hotspot data from NASA FIRMS.
@@ -14,9 +13,7 @@ from io import StringIO
 SOURCE = "VIIRS_SNPP_NRT"
 AREA = "68,5,106,36"
 
-API_URL = (
-    "https://firms.modaps.eosdis.nasa.gov/api/area/csv/"
-)
+API_URL = ("https://firms.modaps.eosdis.nasa.gov/api/area/csv/")
 
 
 def fetch_nasa_data(day_range=5):
@@ -33,9 +30,7 @@ def fetch_nasa_data(day_range=5):
     try:
         api_key = st.secrets["NASA_FIRMS_MAP_KEY"]
     except Exception:
-        raise ValueError(
-            "NASA API key not found. Check .streamlit/secrets.toml."
-        )
+        raise ValueError("NASA API key not found. Check .streamlit/secrets.toml.")
 
     # Build API request URL
     url = (
@@ -51,9 +46,7 @@ def fetch_nasa_data(day_range=5):
         response.raise_for_status()
 
     except requests.exceptions.RequestException as error:
-        raise ConnectionError(
-            "Unable to fetch data from NASA FIRMS: " + str(error)
-        )
+        raise ConnectionError("Unable to fetch data from NASA FIRMS: " + str(error))
 
     # Convert CSV response into a DataFrame
     try:
@@ -70,16 +63,11 @@ def fetch_nasa_data(day_range=5):
 
     # Rename NASA confidence to avoid confusion with model predictions
     if "confidence" in data.columns:
-        data.rename(
-            columns={"confidence": "api_confidence"},
-            inplace=True
-        )
+        data.rename(columns={"confidence": "api_confidence"},inplace=True)
+
     # Check NASA confidence reference labels
     if "api_confidence" not in data.columns:
-        raise ValueError(
-            "NASA confidence column is missing. "
-            "Live model evaluation cannot be performed."
-        )
+        raise ValueError("NASA confidence column is missing. Live model evaluation cannot be performed.")
 
     # Standardise NASA confidence labels
     data["api_confidence"] = (
@@ -102,16 +90,10 @@ def fetch_nasa_data(day_range=5):
         "acq_time"
     ]
 
-    missing_columns = [
-        column for column in required_columns
-        if column not in data.columns
-    ]
+    missing_columns = [column for column in required_columns if column not in data.columns]
 
     if missing_columns:
-        raise ValueError(
-            "Missing NASA data columns: "
-            + ", ".join(missing_columns)
-        )
+        raise ValueError("Missing NASA data columns: "+ ", ".join(missing_columns))
 
     # Convert numerical columns
     numeric_columns = [
@@ -125,38 +107,24 @@ def fetch_nasa_data(day_range=5):
     ]
 
     for column in numeric_columns:
-        data[column] = pd.to_numeric(
-            data[column],
-            errors="coerce"
-        )
+        data[column] = pd.to_numeric(data[column],errors="coerce")
 
     # Remove invalid observations
-    data.dropna(
-        subset=numeric_columns + ["daynight", "acq_date"],
-        inplace=True
-    )
+    data.dropna(subset=numeric_columns + ["daynight", "acq_date"],inplace=True)
 
     # Validate geographic coordinates
-    data = data[
-        (data["latitude"].between(-90, 90)) &
-        (data["longitude"].between(-180, 180))
-    ]
+    data = data[(data["latitude"].between(-90, 90)) &(data["longitude"].between(-180, 180))]
 
     # FRP cannot be negative
     data = data[data["frp"] >= 0]
 
     # Standardise day/night values
-    data["daynight"] = (
-        data["daynight"].astype(str).str.upper().str.strip()
-    )
+    data["daynight"] = (data["daynight"].astype(str).str.upper().str.strip())
 
     data = data[data["daynight"].isin(["D", "N"])]
 
     # Convert acquisition date
-    data["acq_date"] = pd.to_datetime(
-        data["acq_date"],
-        errors="coerce"
-    )
+    data["acq_date"] = pd.to_datetime(data["acq_date"],errors="coerce")
 
     data.dropna(subset=["acq_date"], inplace=True)
 

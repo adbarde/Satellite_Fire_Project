@@ -6,6 +6,7 @@ Purpose: Main dashboard configuration and Home page.
 """
 
 import streamlit as st
+from utils.theme import apply_theme
 
 
 # --------------------------------------------------
@@ -19,160 +20,47 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-
-# --------------------------------------------------
-# COMMON UI STYLING
-# --------------------------------------------------
-
-st.markdown("""
-<style>
-
-/* Main background */
-.stApp {
-    background-color: #101827;
-    color: #F1F5F9;
-}
-
-/* Main content spacing */
-.block-container {
-    padding-top: 2rem;
-    padding-bottom: 2rem;
-    max-width: 1400px;
-}
-
-/* Headings */
-h1, h2, h3 {
-    color: #F1F5F9 !important;
-}
-
-/* Paragraph text */
-p {
-    color: #CBD5E1;
-}
-
-/* Sidebar */
-[data-testid="stSidebar"] {
-    background-color: #182538;
-}
-
-/* Metric cards */
-[data-testid="stMetric"] {
-    background-color: #182538;
-    border: 1px solid #334155;
-    padding: 18px;
-    border-radius: 12px;
-}
-
-/* Buttons */
-.stButton > button {
-    background-color: #2563EB;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    padding: 0.55rem 1rem;
-}
-
-.stButton > button:hover {
-    background-color: #1D4ED8;
-    color: white;
-}
-
-/* Navigation cards */
-.nav-card {
-    background-color: #182538;
-    border: 1px solid #334155;
-    border-radius: 12px;
-    padding: 22px;
-    min-height: 175px;
-    margin-bottom: 12px;
-}
-
-.nav-card h3 {
-    color: #F1F5F9;
-    margin-bottom: 10px;
-    font-size: 20px;
-}
-
-.nav-card p {
-    color: #94A3B8;
-    font-size: 14px;
-}
-
-/* Workflow cards */
-.workflow-card {
-    background-color: #182538;
-    border-left: 4px solid #60A5FA;
-    border-radius: 10px;
-    padding: 18px;
-    min-height: 130px;
-}
-
-.workflow-card h3 {
-    font-size: 17px;
-    margin-bottom: 8px;
-}
-
-.workflow-card p {
-    color: #94A3B8;
-    font-size: 14px;
-}
-
-/* Footer */
-.footer {
-    text-align: center;
-    color: #94A3B8;
-    font-size: 13px;
-    padding-top: 22px;
-    padding-bottom: 10px;
-    border-top: 1px solid #334155;
-    margin-top: 45px;
-}
-
-.footer-subtitle {
-    color: #64748B;
-    font-size: 12px;
-}
-
-/* Remove excess divider spacing */
-hr {
-    border-color: #334155;
-}
-
-</style>
-""", unsafe_allow_html=True)
+apply_theme()
 
 
 # --------------------------------------------------
-# HOME PAGE HEADER
+# HERO SECTION
 # --------------------------------------------------
 
 st.markdown(
     """
-    <div style="margin-bottom: 8px;">
-        <span style="
-            background-color: #1E3A5F;
-            color: #93C5FD;
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;">
-            SATELLITE FIRE MONITORING
-        </span>
+    <div class="hero-section">
+        <div class="hero-label">NASA SATELLITE DATA · AI-POWERED ANALYSIS</div>
+        <h1>Satellite Fire Hotspot Intelligence</h1>
+        <p>
+            An integrated system for fire hotspot classification,
+            spatial clustering and priority analysis.
+        </p>
+        <div class="hero-source">
+            DATA SOURCE: NASA FIRMS | VIIRS-SNPP NRT
+        </div>
     </div>
     """,
     unsafe_allow_html=True
 )
 
-st.title("Fire Intelligence Dashboard")
+
+# --------------------------------------------------
+# PROJECT OVERVIEW
+# --------------------------------------------------
+
+st.subheader("Project Overview")
 
 st.markdown(
     """
-    Monitor satellite-based fire detections through
-    machine learning, spatial clustering and priority analysis.
+    This platform analyses satellite-based fire hotspot detections
+    using machine learning and spatial analysis techniques.
+
+    It combines three major processes: predicting detection
+    confidence, identifying geographical clusters and assigning
+    investigation-priority scores to individual observations.
     """
 )
-
-st.caption("Data source: NASA FIRMS · VIIRS-SNPP NRT")
 
 st.divider()
 
@@ -181,7 +69,12 @@ st.divider()
 # SYSTEM WORKFLOW
 # --------------------------------------------------
 
-st.subheader("System Workflow")
+st.subheader("How the System Works")
+
+st.caption(
+    "Three integrated stages transform satellite observations "
+    "into structured fire intelligence."
+)
 
 col1, col2, col3 = st.columns(3)
 
@@ -189,11 +82,15 @@ with col1:
     st.markdown(
         """
         <div class="workflow-card">
-            <h3>01 · Classification</h3>
+            <div class="card-number">01</div>
+            <div class="card-icon">🎯</div>
+            <h3>Fire Classification</h3>
             <p>
-                Decision Tree predicts the confidence
-                class of fire detections.
+                A trained Decision Tree model classifies
+                satellite detections into Low, Nominal
+                and High confidence categories.
             </p>
+            <div class="card-tag">MACHINE LEARNING</div>
         </div>
         """,
         unsafe_allow_html=True
@@ -203,11 +100,16 @@ with col2:
     st.markdown(
         """
         <div class="workflow-card">
-            <h3>02 · Spatial Clustering</h3>
+            <div class="card-number">02</div>
+            <div class="card-icon">📍</div>
+            <h3>Spatial Clustering</h3>
             <p>
-                DBSCAN identifies geographical
-                clusters and noise detections.
+                DBSCAN groups geographically nearby
+                fire detections and identifies
+                observations that do not belong
+                to dense clusters.
             </p>
+            <div class="card-tag">SPATIAL ANALYSIS</div>
         </div>
         """,
         unsafe_allow_html=True
@@ -217,11 +119,16 @@ with col3:
     st.markdown(
         """
         <div class="workflow-card">
-            <h3>03 · Priority Analysis</h3>
+            <div class="card-number">03</div>
+            <div class="card-icon">🔥</div>
+            <h3>Priority Analysis</h3>
             <p>
-                Weighted priority scores rank
-                detections for further investigation.
+                A weighted scoring method combines
+                FRP, nearby detection density and
+                predicted confidence to rank
+                observations for investigation.
             </p>
+            <div class="card-tag">PRIORITY SCORING</div>
         </div>
         """,
         unsafe_allow_html=True
@@ -235,10 +142,10 @@ st.divider()
 # DASHBOARD NAVIGATION
 # --------------------------------------------------
 
-st.subheader("Explore Dashboard")
+st.subheader("Explore the Dashboard")
 
-st.markdown(
-    "Select a section to explore the fire intelligence results."
+st.caption(
+    "Select a module to explore the corresponding analysis."
 )
 
 col1, col2, col3 = st.columns(3)
@@ -247,10 +154,13 @@ with col1:
     st.markdown(
         """
         <div class="nav-card">
+            <div class="nav-icon">🛰️</div>
             <h3>Live Fire Monitoring</h3>
             <p>
-                View recent fire detections, geographical
-                clusters and daily detection trends.
+                Retrieve recent satellite fire detections,
+                view classification results, explore
+                geographical clusters and examine
+                detection trends.
             </p>
         </div>
         """,
@@ -267,10 +177,12 @@ with col2:
     st.markdown(
         """
         <div class="nav-card">
+            <div class="nav-icon">🔥</div>
             <h3>Priority Analysis</h3>
             <p>
-                Explore priority categories, high-priority
-                clusters and individual detections.
+                Explore High, Medium and Low priority
+                observations, examine priority scores
+                and identify important spatial clusters.
             </p>
         </div>
         """,
@@ -287,10 +199,13 @@ with col3:
     st.markdown(
         """
         <div class="nav-card">
+            <div class="nav-icon">📊</div>
             <h3>Model Evaluation</h3>
             <p>
-                Examine prediction distribution and
-                evaluation results against NASA labels.
+                Examine prediction distributions,
+                compare model predictions with
+                NASA confidence labels and review
+                evaluation metrics.
             </p>
         </div>
         """,
@@ -304,6 +219,61 @@ with col3:
     )
 
 
+st.divider()
+
+
+# --------------------------------------------------
+# TECHNOLOGY AND METHODOLOGY
+# --------------------------------------------------
+
+st.subheader("Technology Behind the Platform")
+
+tech_col1, tech_col2 = st.columns(2)
+
+with tech_col1:
+    st.markdown(
+        """
+        **Data and Machine Learning**
+
+        - NASA FIRMS VIIRS-SNPP satellite observations
+        - Python and Pandas for data processing
+        - Scikit-learn Decision Tree classification
+        - DBSCAN spatial clustering
+        """
+    )
+
+with tech_col2:
+    st.markdown(
+        """
+        **Analysis and Visualisation**
+
+        - BallTree and Haversine distance calculations
+        - FRP-based priority scoring
+        - Plotly interactive maps and charts
+        - Streamlit dashboard interface
+        """
+    )
+
+
+# --------------------------------------------------
+# PROJECT SCOPE
+# --------------------------------------------------
+
+with st.expander("Project Scope and Important Notes"):
+
+    st.markdown(
+        """
+        - The system analyses satellite-based fire detections.
+        - The Decision Tree predicts detection confidence classes.
+        - DBSCAN identifies spatially dense groups of detections.
+        - Priority scores rank observations for further investigation.
+        - The platform does not predict future fires.
+        - Priority scores are project-defined investigation
+          indices, not probabilities of fire risk or severity.
+        """
+    )
+
+
 # --------------------------------------------------
 # FOOTER
 # --------------------------------------------------
@@ -311,9 +281,14 @@ with col3:
 st.markdown(
     """
     <div class="footer">
-        <div>AI Mini Project | Anshika (2601) · Kiran (2605)</div>
+        <div class="footer-title">
+            SATELLITE FIRE HOTSPOT INTELLIGENCE
+        </div>
+        <div>
+            AI Mini Project | Anshika (2601) · Kiran (2605)
+        </div>
         <div class="footer-subtitle">
-            Satellite Fire Hotspot Intelligence
+            Powered by NASA FIRMS satellite observations
         </div>
     </div>
     """,

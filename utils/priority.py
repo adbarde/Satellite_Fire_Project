@@ -1,4 +1,3 @@
-
 """
 File Name: priority.py
 Purpose: Calculate and rank fire hotspot investigation priority.
