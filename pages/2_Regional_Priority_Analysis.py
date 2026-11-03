@@ -460,23 +460,15 @@ st.download_button(
 # ==================================================
 # 13. FOOTER
 # ==================================================
-
+# Footer
 st.markdown("""
 <div class="footer">
-    <div class="footer-title">
-        SATELLITE FIRE HOTSPOT INTELLIGENCE
-    </div>
-
-    <div>
-        AI Mini Project | Anshika (2601) · Kiran (2605)
-    </div>
-
-    <div class="footer-subtitle">
-        Priority scores support exploratory investigation.
-    </div>
+    <div>AI Mini Project | Anshika (2601) · Kiran (2605)</div>
+    <div class="footer-subtitle">Satellite Fire Hotspot Intelligence</div>
 </div>
 """, unsafe_allow_html=True)
 
 st.caption(
-    "Priority scores should not be interpreted as confirmed fire-risk levels."
+    "NASA FIRMS VIIRS-SNPP NRT observations may be revised "
+    "as NASA updates its data."
 )
